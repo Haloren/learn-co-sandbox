@@ -2,4 +2,129 @@
 
 require_relative '../lib/neo'
 
+require 'rest-client'
+require 'json'
+require 'open-uri'
+
+response = RestClient.get("https://api.nasa.gov/neo/rest/v1/feed?api_key= ADD KEY HERE") #THIS WONT RUN WITHOUT ADDING A KEY 
+
+data = JSON.parse(response)
+
+Bundler.require(:default, :development) #(:default, :development) allows pry to work
+
+Class CLI
+	def start
+		puts "Welcome"
+		main_menu
+	end 
+
+	def start_menu	
+		puts "What would you like to do"
+		puts "" #empty line
+		#puts "1. Closest"
+		#puts "2. Hazardous"
+		#puts "3. Name"
+		puts "4. List"
+		#puts "5. Random"
+		puts "exit"
+
+		input = gets.strip
+
+		#if input == "1"
+			
+
+		#elsif input == "2"
+
+		#elsif input == "3"
+
+		elsif input == "4"
+			Scraper.new.scrape_neo
+			list_neo
+		#elsif input == "5"
+
+		elsif input == "exit"
+
+		else 
+			"Not an option"
+			start_menu
+		end 
+	end 
+
+	def list_neo #option 4
+		puts nil
+		Neo.all.each.with_index(1){|n, i| puts "#{i.name"}
+	end 
+
+end 
+
+class Neo #all the neos and their data
+	
+	attr_accessor :name, :est_diameter, :approach_date, :hazardous, :miss_distance, :url
+
+	@@all = [] #initialize class variable
+
+  def self.create_from_hash(hash)
+    n = Neo.new
+		hash.each do |key, value|
+			n.send("#{key}=", value) if n.methods.include?("#{key}=".to_sym)
+    end	
+    n.save
+	end
+
+	def self.all #expose class variable, allows it to be accessed outside of class
+		@@all
+	end 	
+
+	def save
+    tap{@@all << self}# look up what this does self.tap
+	end 
+
+end
+
+
+#info_hash = data["near_earth_objects"]["2020-02-12"][0]
+#neo info for all dates
+data["near_earth_objects"].each do |_date, neos_info|
+  #inside an iteration, where the key is a date, and neos_info is an array of neo_info hashes
+  
+  neos_info.each do |neo_hash|
+    custom_hash = {}
+    
+    #neo_hash is like the info_hash from before
+    custom_hash[:name] = neo_hash["name"]
+    
+    custom_hash[:est_diameter] = neo_hash["estimated_diameter"]["miles"][("estimated_diameter_max")] #("estimated_diameter_max" - "estimated_diameter_min")/2 = average diameter
+    
+    custom_hash[:approach_date] = neo_hash["close_approach_data"][0]["close_approach_date"]
+
+    custom_hash[:hazardous] = neo_hash["is_potentially_hazardous_asteroid"]
+
+    custom_hash[:miss_distance] = neo_hash["close_approach_data"][0]["miss_distance"]["miles"]
+    
+    custom_hash[:url] = neo_hash["nasa_jpl_url"]
+
+    Neo.create_from_hash(custom_hash)
+    #we should build an neo object with info from this hash
+  end
+
+end
+
+
+end 
+
+class Scraper
+	def scrape_neo
+		doc = Nokogiri::HTML(open("https://api.nasa.gov/neo/rest/v1/feed?api_key=VtdGiNRbgRSduhbTZTN6vYowNTF0DPjoF4WXYnv6#browseAPI")
+		neo_names = doc.css('scrap from API the full neo')
+		
+		# for every neo name make a hash about each neo 
+		neo_names.each do |neo_names|
+			neo_hash = {} #empty hash array
+			neo_hash['name'] = neo_names.css("take from full neo the name").text #names have numbers and letters does this matter? 
+			Neo.create_from_hash(neo_hash)
+		end 
+	end 
+end 
+
 CLI.new.start
+
